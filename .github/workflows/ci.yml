@@ -28,3 +28,6 @@ jobs:
           exit 1
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
+      - name: Smoke-test the packed tarball
+        run: scripts/smoke-pack.sh
