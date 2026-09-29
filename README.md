@@ -11,23 +11,27 @@ AI image generators are great until you run out of credits, need dozens of consi
 ## Usage
 
 ```bash
-npm install
-npx tsx generate-cover.ts <slug> <heroicon-name> [out-dir]
+# One-time: download the Chromium build used for rendering (~150MB)
+npx blog-cover-generator install-browser
+
+npx blog-cover-generator <slug> <heroicon-name> [out-dir]
 ```
 
 Example:
 
 ```bash
-npx tsx generate-cover.ts my-first-post server ./covers
+npx blog-cover-generator my-first-post server ./covers
 # -> ./covers/my-first-post.png
 ```
 
-Icon names match files in `node_modules/heroicons/24/outline/` (without the `.svg` extension) — browse the full set at [heroicons.com](https://heroicons.com).
+Or install it globally / as a dev dependency: `npm install -g blog-cover-generator` (or `npm install -D blog-cover-generator`).
+
+Run `blog-cover-generator --list-icons` to print every valid icon name (also browsable at [heroicons.com](https://heroicons.com)), `--help` for all options and `--version` for the version.
 
 ### Customizing colors and size
 
 ```bash
-npx tsx generate-cover.ts my-post rocket-launch \
+npx blog-cover-generator my-post rocket-launch \
   --width 1600 --height 900 \
   --bg "#111111" --fg "#FFFFFF" --accent "#FF5C00"
 ```
@@ -39,6 +43,8 @@ npx tsx generate-cover.ts my-post rocket-launch \
 | `--bg` | `#0A0D16` | Background color |
 | `--fg` | `#F2F3F5` | Icon color |
 | `--accent` | `#1E9BFF` | Corner accent badge color |
+| `--list-icons` | | Print available icon names and exit |
+| `-h`, `--help` / `-v`, `--version` | | Help / version |
 
 ## How it works
 
@@ -50,7 +56,19 @@ npx tsx generate-cover.ts my-post rocket-launch \
 ## Requirements
 
 - Node.js 18+
-- `npm install` will download a Chromium binary via `playwright-core` (~150MB) on first install
+- A Chromium binary (~150MB), downloaded explicitly once with `blog-cover-generator install-browser` (it is not fetched during `npm install`)
+
+## Development
+
+```bash
+git clone https://github.com/diogocouto18/blog-cover-generator && cd blog-cover-generator
+npm ci
+npm run install-browser   # Chromium
+npm run generate -- my-post server ./covers   # run from source via tsx
+npm run typecheck && npm test
+npm run build             # compile to dist/
+scripts/smoke-pack.sh     # pack, install the tarball in a clean dir and render a PNG
+```
 
 ## License
 

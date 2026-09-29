@@ -90,3 +90,27 @@ test('smoke: CLI renders a PNG with the requested dimensions', () => {
     rmSync(out, { recursive: true, force: true })
   }
 })
+
+test('CLI --help, --version and --list-icons', () => {
+  const help = run('--help')
+  assert.equal(help.status, 0)
+  assert.match(help.stdout, /Usage:/)
+  assert.match(help.stdout, /install-browser/)
+
+  const version = run('--version')
+  assert.equal(version.status, 0)
+  assert.match(version.stdout.trim(), /^\d+\.\d+\.\d+/)
+
+  const icons = run('--list-icons')
+  assert.equal(icons.status, 0)
+  const names = icons.stdout.trim().split('\n')
+  assert.ok(names.includes('server'))
+  assert.ok(names.length > 100)
+})
+
+test('parseArgs recognizes info flags and rejects unknown ones', () => {
+  assert.equal(parseArgs(['-h']).flags.help, true)
+  assert.equal(parseArgs(['--version']).flags.version, true)
+  assert.equal(parseArgs(['--list-icons']).flags.listIcons, true)
+  assert.throws(() => parseArgs(['-x']), CliError)
+})

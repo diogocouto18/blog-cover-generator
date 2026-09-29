@@ -3,10 +3,24 @@
   "version": "1.0.0",
   "description": "Generate blog post cover images from a Heroicons icon, no AI/paid image generation service required.",
   "type": "module",
+  "bin": {
+    "blog-cover-generator": "dist/generate-cover.js"
+  },
+  "main": "dist/generate-cover.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "license": "MIT",
   "scripts": {
     "generate": "tsx generate-cover.ts",
-    "postinstall": "playwright-core install chromium",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
+    "install-browser": "playwright-core install chromium",
     "typecheck": "tsc",
     "test": "node --import tsx --test test/*.test.ts"
   },
@@ -18,5 +32,20 @@
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "@types/node": "^22.10.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diogocouto18/blog-cover-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/diogocouto18/blog-cover-generator/issues"
+  },
+  "homepage": "https://github.com/diogocouto18/blog-cover-generator#readme",
+  "keywords": [
+    "blog",
+    "cover-image",
+    "heroicons",
+    "playwright",
+    "cli"
+  ]
 }

@@ -1,13 +1,15 @@
+#!/usr/bin/env node
 // Generates a blog post cover image — a Heroicons outline icon on a solid
 // background with a small accent badge in the corner — with no AI/paid
 // generation service involved. Renders an HTML page with Playwright and
 // screenshots it to a PNG.
 //
-// Usage: npx tsx generate-cover.ts <slug> <heroicon-name> [out-dir]
-//   [--width N] [--height N] [--bg #hex] [--fg #hex] [--accent #hex]
-//
-// Icon names match files in node_modules/heroicons/24/outline/ (without .svg).
-import { readFileSync, readdirSync, mkdirSync } from 'node:fs'
+// Usage: blog-cover-generator <slug> <heroicon-name> [out-dir] [options]
+// Run with --help for all options. Icon names match the files in the
+// heroicons package (24/outline, without .svg); see --list-icons.
+import { readFileSync, readdirSync, mkdirSync, existsSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { spawnSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright-core'
@@ -20,8 +22,62 @@ const DEFAULTS = {
   accent: '#1E9BFF',
 }
 
+const require = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const ICONS_DIR = join(__dirname, 'node_modules', 'heroicons', '24', 'outline')
+
+// Resolved through Node's module resolution so it works both in a repo
+// checkout and when installed as a dependency (hoisted node_modules).
+const ICONS_DIR = join(dirname(require.resolve('heroicons/package.json')), '24', 'outline')
+
+// package.json sits next to this file (tsx) or one level up (dist/).
+function readPackageVersion(): string {
+  for (const dir of [__dirname, join(__dirname, '..')]) {
+    const file = join(dir, 'package.json')
+    if (existsSync(file)) return JSON.parse(readFileSync(file, 'utf8')).version as string
+  }
+  return 'unknown'
+}
+
+const HELP = `blog-cover-generator - generate blog cover images from a Heroicons icon
+
+Usage:
+  blog-cover-generator <slug> <heroicon-name> [out-dir] [options]
+  blog-cover-generator install-browser
+  blog-cover-generator --list-icons
+
+Arguments:
+  slug            Output file name without extension (letters, digits, "-", "_")
+  heroicon-name   Icon from the Heroicons outline set, e.g. server (see --list-icons)
+  out-dir         Output directory (default: current directory)
+
+Options:
+  --width N       Image width in pixels (default: ${DEFAULTS.width})
+  --height N      Image height in pixels (default: ${DEFAULTS.height})
+  --bg #hex       Background color (default: ${DEFAULTS.bg})
+  --fg #hex       Icon color (default: ${DEFAULTS.fg})
+  --accent #hex   Corner badge color (default: ${DEFAULTS.accent})
+  --list-icons    Print all available icon names and exit
+  -h, --help      Show this help
+  -v, --version   Show the version
+
+Commands:
+  install-browser   Download the Chromium build used for rendering (~150MB,
+                    one-time step; required before the first run)
+`
+
+export function listIcons(iconsDir: string = ICONS_DIR): string[] {
+  return readdirSync(iconsDir)
+    .filter((f) => f.endsWith('.svg'))
+    .map((f) => f.slice(0, -'.svg'.length))
+    .sort()
+}
+
+function installBrowser(): void {
+  const cli = require.resolve('playwright-core/cli.js')
+  console.log('[generate-cover] Downloading Chromium (~150MB, one-time)...')
+  const r = spawnSync(process.execPath, [cli, 'install', 'chromium'], { stdio: 'inherit' })
+  if (r.status !== 0) throw new CliError('Chromium download failed. Check your network/proxy and retry: blog-cover-generator install-browser')
+}
 
 export class CliError extends Error {}
 
@@ -64,9 +120,7 @@ export function validateIconName(name: string, iconsDir: string = ICONS_DIR): st
   if (!ICON_NAME.test(name)) {
     throw new CliError(`Invalid icon name "${name}": must match ${ICON_NAME.source}`)
   }
-  const available = readdirSync(iconsDir)
-    .filter((f) => f.endsWith('.svg'))
-    .map((f) => f.slice(0, -'.svg'.length))
+  const available = listIcons(iconsDir)
   if (!available.includes(name)) {
     const close = suggestIcons(name, available)
     throw new CliError(`Unknown icon "${name}"${close.length ? `. Did you mean: ${close.join(', ')}?` : ''}`)
@@ -110,6 +164,7 @@ function hexColor(flag: string, value: string | undefined): string {
 export function parseArgs(argv: string[]) {
   const opts = { ...DEFAULTS }
   const rest: string[] = []
+  const flags = { help: false, version: false, listIcons: false }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!
     if (arg === '--width') opts.width = positiveInt(arg, argv[++i])
@@ -117,17 +172,24 @@ export function parseArgs(argv: string[]) {
     else if (arg === '--bg') opts.bg = hexColor(arg, argv[++i])
     else if (arg === '--fg') opts.fg = hexColor(arg, argv[++i])
     else if (arg === '--accent') opts.accent = hexColor(arg, argv[++i])
-    else if (arg.startsWith('--')) throw new CliError(`Unknown option "${arg}"`)
+    else if (arg === '--help' || arg === '-h') flags.help = true
+    else if (arg === '--version' || arg === '-v') flags.version = true
+    else if (arg === '--list-icons') flags.listIcons = true
+    else if (arg.startsWith('-')) throw new CliError(`Unknown option "${arg}"`)
     else rest.push(arg)
   }
-  return { opts, rest }
+  return { opts, rest, flags }
 }
 
 async function main(): Promise<void> {
-  const { opts, rest } = parseArgs(process.argv.slice(2))
+  const { opts, rest, flags } = parseArgs(process.argv.slice(2))
+  if (flags.help) return void console.log(HELP)
+  if (flags.version) return void console.log(readPackageVersion())
+  if (flags.listIcons) return void console.log(listIcons().join('\n'))
+  if (rest[0] === 'install-browser' && rest.length === 1) return installBrowser()
   const [slug, iconName, outDir = '.'] = rest
   if (!slug || !iconName) {
-    throw new CliError('Usage: npx tsx generate-cover.ts <slug> <heroicon-name> [out-dir] [--width N] [--height N] [--bg #hex] [--fg #hex] [--accent #hex]')
+    throw new CliError('Usage: blog-cover-generator <slug> <heroicon-name> [out-dir] [options] (see --help)')
   }
   validateSlug(slug)
   const iconInner = loadIconInner(iconName)
@@ -139,7 +201,15 @@ async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true })
   const outPath = join(outDir, `${slug}.png`)
 
-  const browser = await chromium.launch()
+  let browser
+  try {
+    browser = await chromium.launch()
+  } catch (error) {
+    if (error instanceof Error && /Executable doesn't exist|browserType\.launch/.test(error.message)) {
+      throw new CliError('Chromium is not installed. First-run setup: blog-cover-generator install-browser (npx blog-cover-generator install-browser)')
+    }
+    throw error
+  }
   try {
     const page = await browser.newPage({ viewport: { width: opts.width, height: opts.height } })
     await page.setContent(pageHtml(svg, opts))
@@ -152,7 +222,8 @@ async function main(): Promise<void> {
 }
 
 // Only run when executed directly, so tests can import the helpers.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// realpath so it also runs through the npm bin symlink.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main().catch((error) => {
     console.error(`[generate-cover] ${error instanceof CliError ? error.message : `Failed: ${error instanceof Error ? error.message : error}`}`)
     process.exitCode = 1
