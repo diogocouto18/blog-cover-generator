@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Browser download + system libs; retried so a transient CDN/apt hiccup does not fail the build.
+      - name: Install Chromium
+        run: |
+          for attempt in 1 2 3; do
+            npx playwright-core install --with-deps chromium && exit 0
+            echo "Attempt $attempt failed, retrying..."; sleep 10
+          done
+          exit 1
+      - run: npm run typecheck
+      - run: npm test

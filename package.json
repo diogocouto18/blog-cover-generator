@@ -6,7 +6,9 @@
   "license": "MIT",
   "scripts": {
     "generate": "tsx generate-cover.ts",
-    "postinstall": "playwright-core install chromium"
+    "postinstall": "playwright-core install chromium",
+    "typecheck": "tsc",
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
     "heroicons": "^2.2.0",
