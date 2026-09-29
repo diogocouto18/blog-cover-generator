@@ -46,12 +46,54 @@ npx blog-cover-generator my-post rocket-launch \
 | `--list-icons` | | Print available icon names and exit |
 | `-h`, `--help` / `-v`, `--version` | | Help / version |
 
+## Gallery
+
+Every image below was generated with the exact command shown (at 1024x576 to keep the files small; the default is 2048x1152). The icon sits on the left third of the canvas on purpose, leaving the right side free for a title or overlay in your blog theme.
+
+| Output | Command |
+|---|---|
+| ![Default look](./examples/default-look.png) | `blog-cover-generator default-look server ./examples --width 1024 --height 576` |
+| ![Orange rocket](./examples/orange-rocket.png) | `blog-cover-generator orange-rocket rocket-launch ./examples --width 1024 --height 576 --bg "#111111" --fg "#FFFFFF" --accent "#FF5C00"` |
+| ![Light shield](./examples/light-shield.png) | `blog-cover-generator light-shield shield-check ./examples --width 1024 --height 576 --bg "#F5F1E8" --fg "#1F2937" --accent "#10B981"` |
+| ![Violet chart](./examples/violet-chart.png) | `blog-cover-generator violet-chart chart-bar ./examples --width 1024 --height 576 --bg "#1E1B4B" --fg "#E0E7FF" --accent "#F472B6"` |
+
+### Batch: covers for many posts
+
+Put one `<slug> <icon>` pair per line in a file, then loop over it:
+
+```bash
+cat > posts.txt <<'EOT'
+intro-to-docker cube
+monitoring-with-grafana chart-bar
+hardening-ssh shield-check
+EOT
+
+while read -r slug icon; do
+  npx blog-cover-generator "$slug" "$icon" ./covers --bg "#0A0D16" --accent "#1E9BFF" || echo "FAILED: $slug" >&2
+done < posts.txt
+# -> ./covers/intro-to-docker.png, ./covers/monitoring-with-grafana.png, ...
+```
+
+Each invocation launches its own browser (about a second each), which is fine for a few hundred posts. Failures (for example a mistyped icon) are reported per line and do not stop the rest of the batch.
+
 ## How it works
 
 1. Loads the requested Heroicons outline SVG and extracts its inner markup
 2. Adds a small accent badge in the icon's own viewBox, so it stays anchored to the icon's corner regardless of icon shape
 3. Renders it centered on a solid-color page at the requested dimensions
 4. Launches headless Chromium via `playwright-core`, screenshots the page, saves the PNG
+
+## Troubleshooting
+
+**"Chromium is not installed"** - the browser is not downloaded by `npm install`. Run `blog-cover-generator install-browser` once (`npm run install-browser` in a checkout).
+
+**The Chromium download fails or hangs** - it is fetched from the Playwright CDN (~150MB). Behind a proxy, set `HTTPS_PROXY` before running `install-browser`. To use a shared location (for example in CI or Docker), set `PLAYWRIGHT_BROWSERS_PATH` to the same directory for both the install and the run. On a minimal Linux image, Chromium may also need system libraries; install them with `npx playwright-core install-deps chromium` (requires root).
+
+**`Unknown icon "serverr". Did you mean: server?`** - the icon name must match a Heroicons outline file exactly (lowercase, hyphenated). The tool suggests close matches; `blog-cover-generator --list-icons | grep rocket` searches the full list.
+
+**`Invalid slug` / `Invalid icon name`** - slugs may contain only letters, digits, `-` and `_` (and must start with a letter or digit); icon names only lowercase letters, digits and `-`.
+
+**`--width must be a positive integer` / `--bg must be a hex color`** - use whole numbers for sizes and `#rgb` or `#rrggbb` colors (quote them in the shell: `--bg "#111111"`).
 
 ## Requirements
 
