@@ -33,6 +33,9 @@ updates:
     ignore:
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
+      # @types/node must track the supported Node runtime (22), not the latest.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
