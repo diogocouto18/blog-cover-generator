@@ -73,7 +73,9 @@ export function listIcons(iconsDir: string = ICONS_DIR): string[] {
 }
 
 function installBrowser(): void {
-  const cli = require.resolve('playwright-core/cli.js')
+  // `playwright-core/cli.js` is not in the package's `exports` map in recent releases; resolve via
+  // the always-exported package.json and build the path from there.
+  const cli = join(dirname(require.resolve('playwright-core/package.json')), 'cli.js')
   console.log('[generate-cover] Downloading Chromium (~150MB, one-time)...')
   const r = spawnSync(process.execPath, [cli, 'install', 'chromium'], { stdio: 'inherit' })
   if (r.status !== 0) throw new CliError('Chromium download failed. Check your network/proxy and retry: blog-cover-generator install-browser')

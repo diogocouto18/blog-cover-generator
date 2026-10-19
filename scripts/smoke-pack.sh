@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Packs the project, installs the tarball into an empty directory and runs the
-# installed CLI end to end (needs the Chromium build; run `npm run install-browser` first).
+# installed CLI end to end. The consumer resolves its own playwright-core (possibly newer
+# than the lockfile), so it installs the matching Chromium itself, like a first-run user.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,6 +16,7 @@ npm install --no-audit --no-fund "$WORK/$TARBALL"
 
 BIN=./node_modules/.bin/blog-cover-generator
 "$BIN" --version
+"$BIN" install-browser
 "$BIN" --help | grep -q "Usage:"
 "$BIN" --list-icons | grep -qx "server"
 "$BIN" smoke-post server ./out --width 640 --height 360
