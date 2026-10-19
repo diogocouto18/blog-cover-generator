@@ -73,7 +73,9 @@ export function listIcons(iconsDir: string = ICONS_DIR): string[] {
 }
 
 function installBrowser(): void {
-  const cli = require.resolve('playwright-core/cli.js')
+  // `playwright-core/cli.js` is not in the package's `exports` map in recent releases; resolve via
+  // the always-exported package.json and build the path from there.
+  const cli = join(dirname(require.resolve('playwright-core/package.json')), 'cli.js')
   console.log('[generate-cover] Downloading Chromium (~150MB, one-time)...')
   const r = spawnSync(process.execPath, [cli, 'install', 'chromium'], { stdio: 'inherit' })
   if (r.status !== 0) throw new CliError('Chromium download failed. Check your network/proxy and retry: blog-cover-generator install-browser')
@@ -205,8 +207,11 @@ async function main(): Promise<void> {
   try {
     browser = await chromium.launch()
   } catch (error) {
-    if (error instanceof Error && /Executable doesn't exist|browserType\.launch/.test(error.message)) {
+    if (error instanceof Error && /Executable doesn't exist/.test(error.message)) {
       throw new CliError('Chromium is not installed. First-run setup: blog-cover-generator install-browser (npx blog-cover-generator install-browser)')
+    }
+    if (error instanceof Error && /browserType\.launch/.test(error.message)) {
+      throw new CliError(`Chromium failed to launch: ${error.message.split('\n')[0]}`)
     }
     throw error
   }
