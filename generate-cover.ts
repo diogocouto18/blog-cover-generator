@@ -205,8 +205,11 @@ async function main(): Promise<void> {
   try {
     browser = await chromium.launch()
   } catch (error) {
-    if (error instanceof Error && /Executable doesn't exist|browserType\.launch/.test(error.message)) {
+    if (error instanceof Error && /Executable doesn't exist/.test(error.message)) {
       throw new CliError('Chromium is not installed. First-run setup: blog-cover-generator install-browser (npx blog-cover-generator install-browser)')
+    }
+    if (error instanceof Error && /browserType\.launch/.test(error.message)) {
+      throw new CliError(`Chromium failed to launch: ${error.message.split('\n')[0]}`)
     }
     throw error
   }
